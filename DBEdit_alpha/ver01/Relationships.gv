@@ -1,0 +1,15 @@
+digraph Relationships {
+nodesep="2.0"
+ranksep="2.0"
+lblstyle="above"
+	node [shape=box]
+	Addresses
+	Customers
+	Items
+	Orders
+	items_order
+		Addresses -> Customers [label="1 -> 1"]
+		Orders -> Customers [label="∞ -> 1"]
+		items_order -> Orders [label="∞ -> 1"]
+		items_order -> Items [label="∞ -> 1"]
+}
