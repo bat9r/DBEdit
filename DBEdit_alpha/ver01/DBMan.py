@@ -226,6 +226,18 @@ class DBM (Relationship):
         self.__nameDatabase = nameDatabase
         self.cursor.do('use ' + self.__nameDatabase + ';')
     
+    def nameTable (self):
+        '''
+        Function for get name database
+        '''
+        return self.__nameDatabase
+        
+    def nameDatabase (self):
+        '''
+        Function for get name database
+        '''
+        return self.__nameTable
+        
     def table (self, nameTable):
         '''
         Function for edit name database
