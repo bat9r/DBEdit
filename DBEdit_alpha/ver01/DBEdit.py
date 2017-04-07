@@ -3,7 +3,7 @@ import sys
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (QWidget, QLabel, QGridLayout, QApplication,
     QDesktopWidget, QListWidget, QPushButton, QFileDialog, QAbstractItemView,
-    QAction, QMenuBar, QMainWindow)
+    QAction, QMenuBar, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout)
 #Module for regular expression
 import re
 #Our module
@@ -13,7 +13,10 @@ class DBEditGUI (QMainWindow):
     
     def __init__ (self, dbmObj):
         #Initialize father (QWidget) constructor (__init__)
-        QMainWindow.__init__(self)
+        super().__init__()
+        #DELETE THIS
+        global pself
+        pself = self
         #Function for creating UI
         self.dbMan = dbmObj
         self.initUI()
@@ -26,6 +29,8 @@ class DBEditGUI (QMainWindow):
         self.setWindowTitle('DBEdit')
         self.resize(900, 600)
         self.moveToCenter()
+        mainWidget = QWidget(self)
+        self.setCentralWidget(mainWidget)
         
         #Initialize Menu Bar
         menuBar = QMenuBar()
@@ -53,19 +58,50 @@ class DBEditGUI (QMainWindow):
         createAction = QAction("Create",self)
         createAction.setShortcut("Ctrl+G")
         graphMenu.addAction(createAction)
+
+        #Name opened table
+        self.tableNameLabel = QLabel('')
+        #Center label in grid cell
+        self.tableNameLabel.setAlignment(Qt.AlignCenter)
+        #Create table
+        self.tableWidget = QTableWidget()
+        
+        #Create grid and set spacing for cells
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        grid.addWidget(self.tableNameLabel, 0, 0)
+        grid.addWidget(self.tableWidget, 1, 0)
+        mainWidget.setLayout(grid) 
+        self.tableWidget.move(0,0)
         #Binding actions
         tableMenu.triggered[QAction].connect(self.openActionFunc)
-        
         #Show window
         self.show()
     
     def openActionFunc (self):
-        self.changerGUI = ChangerGUI()
+        self.changerGUI = ChangerGUI(self.dbMan)
         self.changerGUI.show()
     
     #TODO Write func
     def printTable (self):
-        print (self.dbMan.nameTable(), self.dbMan.nameDatabase())
+        #----DELETE THIS----
+        test1 = self.dbMan.getAmendedTable()
+        test2 = self.dbMan.getTable()
+        for i in test1:
+            print (i)
+        for j in test2:
+            print (j)
+        #-------------------
+        self.tableNameLabel.setText(self.dbMan.nameTable())
+        table = self.dbMan.getAmendedTable()
+        columnCount = len(table[0])
+        rowCount = len(table)
+        self.tableWidget.setColumnCount(columnCount)
+        self.tableWidget.setRowCount(rowCount)
+        for rowI in range(rowCount):
+            for colI in range(columnCount):
+                self.tableWidget.setItem(rowI, colI, QTableWidgetItem(str(table[rowI][colI])))
+         
         
     def moveToCenter (self):
         '''
@@ -82,11 +118,11 @@ class DBEditGUI (QMainWindow):
    
 class ChangerGUI (QWidget):
     
-    def __init__ (self):
+    def __init__ (self, dbManObj):
         #Initialize father (QWidget) constructor (__init__)
         QWidget.__init__(self)
         #Function for creating UI
-        self.dbMan = DBM()
+        self.dbMan = dbManObj
         self.initUI()
         
     def initUI (self):
@@ -129,8 +165,9 @@ class ChangerGUI (QWidget):
         self.setLayout(grid)
 
     def changeTable(self):
+        global pself
         self.dbMan.table(self.tablesList.currentItem().text())
-        DBEditGUI(self.dbMan).printTable()
+        DBEditGUI.printTable(pself)
         self.hide()
 
     def moveToCenter(self):
@@ -252,7 +289,7 @@ def main():
     #dbMan.table('Addresses')
     mainDBM = DBM()
     app = QApplication(sys.argv)
-    trv = DBEditGUI(mainDBM)
+    edit = DBEditGUI(mainDBM)
     sys.exit(app.exec_())
     
 
