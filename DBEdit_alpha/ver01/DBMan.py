@@ -230,13 +230,13 @@ class DBM (Relationship):
         '''
         Function for get name database
         '''
-        return self.__nameDatabase
+        return self.__nameTable
         
     def nameDatabase (self):
         '''
         Function for get name database
         '''
-        return self.__nameTable
+        return self.__nameDatabase
         
     def table (self, nameTable):
         '''

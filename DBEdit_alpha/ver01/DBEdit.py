@@ -3,7 +3,8 @@ import sys
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (QWidget, QLabel, QGridLayout, QApplication,
     QDesktopWidget, QListWidget, QPushButton, QFileDialog, QAbstractItemView,
-    QAction, QMenuBar, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout)
+    QAction, QMenuBar, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout,
+    QAbstractScrollArea)
 #Module for regular expression
 import re
 #Our module
@@ -14,9 +15,6 @@ class DBEditGUI (QMainWindow):
     def __init__ (self, dbmObj):
         #Initialize father (QWidget) constructor (__init__)
         super().__init__()
-        #DELETE THIS
-        global pself
-        pself = self
         #Function for creating UI
         self.dbMan = dbmObj
         self.initUI()
@@ -66,6 +64,10 @@ class DBEditGUI (QMainWindow):
         #Create table
         self.tableWidget = QTableWidget()
         
+        #Connect the ScrollBar for signal when table ends
+        self.tableWidget.verticalScrollBar().valueChanged.connect(self.scrolledEvent)
+        self.tableWidget.horizontalScrollBar().valueChanged.connect(self.scrolledEvent)
+        
         #Create grid and set spacing for cells
         grid = QGridLayout()
         grid.setSpacing(10)
@@ -77,22 +79,41 @@ class DBEditGUI (QMainWindow):
         tableMenu.triggered[QAction].connect(self.openActionFunc)
         #Show window
         self.show()
+        
+    def createRows (self):
+        '''
+        Function add Row in tableWidget
+        '''
+        self.tableWidget.insertRow(self.tableWidget.rowCount())
+        
+    def createColumns (self):
+        '''
+        Function add Column in tableWidget
+        '''
+        self.tableWidget.insertColumn(self.tableWidget.columnCount())
+        
+    def scrolledEvent(self, value):
+        '''
+        Function reacts for end of scrolling and calls to functions for
+        adding rows or columns
+        '''
+        if value == self.tableWidget.verticalScrollBar().maximum():
+             self.createRows()
+        elif value == self.tableWidget.horizontalScrollBar().maximum():
+             self.createColumns()
     
     def openActionFunc (self):
-        self.changerGUI = ChangerGUI(self.dbMan)
+        '''
+        Function creates window for choosing table for editing
+        '''
+        self.changerGUI = ChangerGUI(self.dbMan, self)
         self.changerGUI.show()
     
-    #TODO Write func
     def printTable (self):
-        #----DELETE THIS----
-        test1 = self.dbMan.getAmendedTable()
-        test2 = self.dbMan.getTable()
-        for i in test1:
-            print (i)
-        for j in test2:
-            print (j)
-        #-------------------
-        self.tableNameLabel.setText(self.dbMan.nameTable())
+        '''
+        Function print table from DBM in DBEditGUI tableWidget
+        '''
+        self.tableNameLabel.setText(self.dbMan.nameDatabase() +', '+ self.dbMan.nameTable())
         table = self.dbMan.getAmendedTable()
         columnCount = len(table[0])
         rowCount = len(table)
@@ -101,8 +122,18 @@ class DBEditGUI (QMainWindow):
         for rowI in range(rowCount):
             for colI in range(columnCount):
                 self.tableWidget.setItem(rowI, colI, QTableWidgetItem(str(table[rowI][colI])))
+        #Changes cells size for fitting to content
+        self.tableWidget.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
+        self.tableWidget.resizeColumnsToContents()
+        #Do table bigger (for scrolling)
+        for i in range(10):
+            if i < self.tableWidget.columnCount():
+                self.tableWidget.insertColumn(self.tableWidget.columnCount())
+        for j in range(20):
+            if j < self.tableWidget.rowCount():
+                self.tableWidget.insertRow(self.tableWidget.rowCount())
          
-        
+    
     def moveToCenter (self):
         '''
         Function put window (self) in center of screen
@@ -118,11 +149,13 @@ class DBEditGUI (QMainWindow):
    
 class ChangerGUI (QWidget):
     
-    def __init__ (self, dbManObj):
+    def __init__ (self, dbManObj, DBEditGUISelf):
         #Initialize father (QWidget) constructor (__init__)
         QWidget.__init__(self)
-        #Function for creating UI
+        #Create obj foe correct working
         self.dbMan = dbManObj
+        self.DBEditGUISelf = DBEditGUISelf
+        #Function for creating UI 
         self.initUI()
         
     def initUI (self):
@@ -165,9 +198,8 @@ class ChangerGUI (QWidget):
         self.setLayout(grid)
 
     def changeTable(self):
-        global pself
         self.dbMan.table(self.tablesList.currentItem().text())
-        DBEditGUI.printTable(pself)
+        DBEditGUI.printTable(self.DBEditGUISelf)
         self.hide()
 
     def moveToCenter(self):
@@ -282,18 +314,14 @@ class TRVisualGUI (QWidget):
         self.tablesList.clear()
         self.dbMan.database(self.databasesList.currentItem().text())
         self.tablesList.addItems(self.dbMan.getListNamesTables())
-      
+
 def main():
-    #dbMan = DBM()
-    #dbMan.database('testRelationships')
-    #dbMan.table('Addresses')
+    #Database manager
     mainDBM = DBM()
     app = QApplication(sys.argv)
     edit = DBEditGUI(mainDBM)
     sys.exit(app.exec_())
-    
 
 if __name__ == "__main__":
     main()
-        
         
