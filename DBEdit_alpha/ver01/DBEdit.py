@@ -150,6 +150,9 @@ class DBEditGUI (QMainWindow):
         return matrixWithEmptyItems
     
     def saveActionFunc (self):
+        '''
+        Function save current table, and commit it in DB
+        '''
         tabProc = TableProcessor (self.dbMan, self.getMatrixFromTable())
         self.printTable()
         

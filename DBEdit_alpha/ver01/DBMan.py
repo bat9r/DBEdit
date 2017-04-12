@@ -412,22 +412,57 @@ class TableProcessor:
         #Saving changes
         self.cursor.commit()
 
-    def checkColumn (self):
-        self.matrixOld = self.dbMan.getAmendedTable()
-        #Add temp id column
-        try:
-            tempID = self.tempIdAdd()
-        except pymysql.err.InternalError:
-            self.tempIdDel('tempIDColumn')
-            tempID = self.tempIdAdd()
-        #---Delete---
-        print ("old/new \n")
-        for l in self.matrixOld:
-            print (l)
-        for r in self.matrixNew:
-            print (r)
-        #------------
+    def checkType (self,i,j):
+        '''
+        Function check type, is it compatible with type in the table.
+        Takes: indexes for matrixNew (i,j)
+        Return: True or Falsr (True if compatible)
+        '''
+        def parseType (typeStr):
+            '''
+            Fucntion split type on two parts, type and lenght of type
+            '''
+            typeStr = str(typeStr).lower()
+            typePart1 = typeStr.split('(')[0]
+            if typePart1 == 'varchar':
+                typePart2 = typeStr.split('(')[1].replace(')','')
+            else:
+                typePart2 = '0'
+            return list((typePart1, typePart2))
+            
+        #Ident current type
+        print (self.matrixNew[i][j])
+        currentType = str(self.identifyType(self.matrixNew[i][j])[0])
+        #Ident previous type
+        self.cursor.do("desc " + self.dbMan.nameTable() + ";")
+        desc = [list(row) for row in self.cursor.done()]
+        for index in range(len(desc)):
+            if parseType(desc[index][1])[0] == parseType(currentType)[0]:
+                if parseType(currentType)[0] == 'varchar':
+                    if parseType(desc[index][1])[1] > parseType(currentType)[1]:
+                        return True
+                if parseType(currentType)[0] != 'varchar':
+                    return True
         
+        return False
+        
+    def changeValue (self, i, j, tempID):
+        '''
+        Function edit value in table using indexes
+        Takes: indexes for matrixNew (i,j) and tempID for coordinates
+        '''
+        self.cursor.do("UPDATE "+ str(self.dbMan.nameTable()) + 
+                    " SET "+ str(self.matrixNew[0][j]) + 
+                    " = '" + str(self.matrixNew[i][j]) + "'" +
+                    " WHERE " + tempID + " = " + str(i) + ";")
+        self.cursor.commit()
+        
+    def checkColumns (self, tempID):
+        '''
+        Function for checking names of columns, and edit our type and
+        values if necessary.
+        Takes: tempID for coordinates
+        '''
         #Check every column for deleting
         if len(self.matrixOld[0]) > len(list(filter(bool, self.matrixNew[0]))):
             print(len(self.matrixOld[0]), len(list(filter(bool, self.matrixNew[0]))))
@@ -447,14 +482,45 @@ class TableProcessor:
                         self.matrixOld[0][i],
                         list([li[i] for li in self.matrixNew]),
                         #Give name of tempID
-                        tempID
-                        )
+                        tempID)
             if i+1 > len(self.matrixOld[0]):
                 self.addColumn(list([li[i] for li in self.matrixNew]),
                                 tempID)
         
+        #Check values in cells
+        self.checkValues(tempID)
+        
+    def checkValues (self, tempID):
+        #Update old table
+        self.matrixOld = self.dbMan.getAmendedTable()
+        #Check values in table
+        for i in range(len(self.matrixNew)):
+            for j in range(len(self.matrixNew[i])):
+                if i+1 <= len(self.matrixOld):
+                    if j+1 <= len(self.matrixOld[j]):
+                        if str(self.matrixOld[i][j]) != str(self.matrixNew[i][j]):
+                            if self.checkType(i,j):
+                                self.changeValue(i,j, tempID)
+        
+    def checkMatrix (self):
+        #Update old table
+        self.matrixOld = self.dbMan.getAmendedTable()
+        #Add temp id column
+        try:
+            tempID = self.tempIdAdd()
+        except pymysql.err.InternalError:
+            self.tempIdDel('tempIDColumn')
+            tempID = self.tempIdAdd()
+            
+        #---Delete---
+        print ("old/new \n")
+        for l in self.matrixOld:
+            print (l)
+        for r in self.matrixNew:
+            print (r)
+        #------------
+        
+        self.checkColumns(tempID)
+        
         #Delete column with temp id
         self.tempIdDel(tempID)
-
-    def checkMatrix (self):
-        self.checkColumn()
