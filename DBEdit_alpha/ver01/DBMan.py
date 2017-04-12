@@ -2,6 +2,8 @@
 import pymysql
 #Import module for graphs
 from graphviz import Digraph
+#Module for regular expression
+import re
 
 class MySQL:
     '''
@@ -27,6 +29,12 @@ class MySQL:
         #Closing cursor
         cur.close()
         
+    def commit (self):
+        '''
+        Function for saving changes
+        '''
+        self.__conn.commit()
+
     def done (self):
         '''
         Function return result of last command
@@ -137,65 +145,6 @@ class Relationship:
 
         return finalList
   
-class TableProcessor:
-    
-    def __init__(self, databaseObj):
-        self.matrix = databaseOnj.getTable()
-        
-    def identifyType (self, value):
-        '''
-        Function: ident type of value for MySQL
-        Takes: argument string value,
-        Returns: type of this argument (like in MySQL)
-        TODO: (may be mistake in date 2017-19-39)
-        '''
-        #Check numbers
-        if ( value.replace(',', '.', 1).replace('.', '', 1).isdigit() ):
-            #Check integer of float
-            if (value.isdigit()):
-                value = int(value)
-                #Choosing type of integer
-                if ( -127 < value and value < 127):
-                    return "TINYINT"
-                if ( value == '0' or value == '1'):
-                    return "BOOL"
-                if ( -32768 < value and value < 32767):
-                    return "SMALLINT"
-                if ( -8388608 < value and value < 8388607):
-                    return "MEDIUMINT"
-                if ( -2147483648 < value and value < 2147483647):
-                    return "INT"
-                if ( -9223372036854775808 < value and value < 9223372036854775807):
-                    return "BIGINT"
-                
-            else:
-                value = float(value.replace(',', '.', 1))
-                if ( (-3.402823466E+38 < value and value < -1.175494351E-38) or
-                     ( 1.175494351E-38 < value and value <  3.402823466E+38) ):
-                    return "FLOAT"
-                if ( (-1.7976931348623157E+308 < value and value < -2.2250738585072014E-308) or
-                     ( 2.2250738585072014E-308 < value and value <  1.7976931348623157E+308) ):
-                    return "DOUBLE"
-        #Check dates
-        if (value.isalpha() == False):
-            patternDate = re.compile(r"^[1-9][0-9][0-9][0-9][-][0-1][0-9][-][0-3][0-9]$")
-            patternDatetime = re.compile(r"^[1-9][0-9][0-9][0-9][-][0-1][0-9][-][0-3][0-9] [0-2][0-3][:][0-5][0-9][:]?[0-5]?[0-9]?[.]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?$")
-            patternTime = re.compile(r"^[-]?[0-7]?[0-9]?[0-9]?[:][0-5][0-9][:]?[0-5]?[0-9]?[.]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?$")
-            if ( patternDate.search(value) ):
-                return "DATE"
-            if ( patternDatetime.search(value) ):
-                return "DATETIME"
-            if ( patternTime.search(value) ):
-                return "TIME"
-        #Check strings
-        if (value == ""):
-            return "NULL"
-        else:
-            return "VARCHAR("+str(len(value))+")"
-
-    def transformForPrinting():
-        pass
-
 class DBM (Relationship):
     __nameDatabase = ""
     __nameTable = ""
@@ -300,3 +249,212 @@ class DBM (Relationship):
         matrix.insert(0, self.getAmendedColumnsNames())
         return matrix
         
+class TableProcessor:
+    
+    def __init__(self, dbMan, matrix):
+        self.cursor = MySQL()
+        self.matrixNew = matrix
+        self.matrixOld = dbMan.getAmendedTable()
+        self.dbMan = dbMan
+        self.checkMatrix()
+        
+    def identifyType (self, value):
+        '''
+        Function: ident type of value for MySQL
+        Takes: argument string value,
+        Returns: type of this argument (like in MySQL), and index 
+        (index means how much big type is it)
+        TODO: (may be mistake in date 2017-19-39)
+        '''
+        value = str(value)
+        #Check numbers
+        if ( value.replace(',', '.', 1).replace('.', '', 1).isdigit() ):
+            #Check integer of float
+            if (value.isdigit()):
+                value = int(value)
+                #Choosing type of integer
+                if ( -127 < value and value < 127):
+                    return ["TINYINT", '0']
+                if ( value == '0' or value == '1'):
+                    return ["BOOL", '1']
+                if ( -32768 < value and value < 32767):
+                    return ["SMALLINT", '2']
+                if ( -8388608 < value and value < 8388607):
+                    return ["MEDIUMINT", '3']
+                if ( -2147483648 < value and value < 2147483647):
+                    return ["INT", '4']
+                if ( -9223372036854775808 < value and value < 9223372036854775807):
+                    return ["BIGINT", '5']
+                
+            else:
+                value = float(value.replace(',', '.', 1))
+                if ( (-3.402823466E+38 < value and value < -1.175494351E-38) or
+                     ( 1.175494351E-38 < value and value <  3.402823466E+38) ):
+                    return ["FLOAT", '10']
+                if ( (-1.7976931348623157E+308 < value and value < -2.2250738585072014E-308) or
+                     ( 2.2250738585072014E-308 < value and value <  1.7976931348623157E+308) ):
+                    return ["DOUBLE", '11']
+        #Check dates
+        if (value.isalpha() == False):
+            patternDate = re.compile(r"^[1-9][0-9][0-9][0-9][-][0-1][0-9][-][0-3][0-9]$")
+            patternDatetime = re.compile(r"^[1-9][0-9][0-9][0-9][-][0-1][0-9][-][0-3][0-9] [0-2][0-3][:][0-5][0-9][:]?[0-5]?[0-9]?[.]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?$")
+            patternTime = re.compile(r"^[-]?[0-7]?[0-9]?[0-9]?[:][0-5][0-9][:]?[0-5]?[0-9]?[.]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?$")
+            if ( patternDate.search(value) ):
+                return ["DATE", '20']
+            if ( patternDatetime.search(value) ):
+                return ["DATETIME", '21']
+            if ( patternTime.search(value) ):
+                return ["TIME", '22']
+        #Check strings
+        #TODO add null, and change 0 to NULL in save function main module
+        #if (value == "NULL"):
+        #    return ["NULL", '-1']
+        else:
+            return ["VARCHAR("+str(len(value))+")", str(100+len(value))]
+
+    def identifyTypeColumn (self, column):
+        '''
+        Function: For indentify type of column
+        Takes: column = list([item, ..]), without name of column
+        Returns : finalType = str(type)
+        '''
+        finalType = ''
+        finalIndex = -10
+        
+        for item in column:
+            tempT = self.identifyType(item)
+            if (tempT[1][0] == '2') and (int(finalIndex) < 20):
+                finalType = "VARCHAR("+str(20)+")"
+            if int(tempT[1]) > finalIndex:
+                finalIndex = int(tempT[1])
+                finalType = tempT[0]
+        return finalType
+                
+    def tempIdAdd (self):
+        '''
+        Function create in opened table autoincrement column [1,2,3]
+        '''
+        tempID = "tempIDColumn"
+        
+        self.cursor.do("ALTER TABLE "+ str(self.dbMan.nameTable()) + 
+                " add "+ tempID +" INT NOT NULL FIRST;")
+        self.cursor.do("set @"+ tempID +":=0;")
+        self.cursor.do("update "+ str(self.dbMan.nameTable()) + 
+                " set "+ tempID + " = (@"+ tempID +" := @"+ tempID +" + 1);")
+        return tempID
+            
+    def tempIdDel (self, tempID):
+        '''
+        Function delete in opened table autoincrement column
+        Takes: name of tempID column
+        '''
+        self.cursor.do("ALTER TABLE "+ str(self.dbMan.nameTable()) + 
+                " drop "+ tempID +" ;")
+        
+    def changeColumn (self, columnOldName, columnNew, tempID):
+        '''
+        Function changing column (add new column after old column,
+        insert items in new column, delete old column)
+        Takes: old column name (str) , new column (list, where [0] 
+        element is name of new column, tempID name (str))
+        Returns: nothing just change table in DB
+        '''
+        typeColumn = self.identifyTypeColumn (columnNew[1:])
+        #Adding column after old column
+        self.cursor.do("ALTER TABLE "+ str(self.dbMan.nameTable()) + 
+                " ADD " + str(columnNew[0]) + 
+                " " + str(typeColumn) +
+                " AFTER " + str(columnOldName) + ";")
+        #Insert items in new column
+        for i in range(1,len(columnNew)):
+            self.cursor.do("UPDATE "+ str(self.dbMan.nameTable()) + 
+                    " SET "+ str(columnNew[0]) + 
+                    " = '" + str(columnNew[i]) + "'" +
+                    " WHERE " + tempID + " = " + str(i) + ";")
+        #Drop old column
+        self.cursor.do("ALTER TABLE "+ str(self.dbMan.nameTable()) + 
+                " DROP " + str(columnOldName) + ";")
+        #Saving changes
+        self.cursor.commit()
+    
+    def addColumn (self, columnNew, tempID):
+        '''
+        Function create new column, after last column and insert items
+        from columnNew 
+        Takes: column new (list, where name is [0]), and tempID name
+        of temporary column (using for indexes)
+        Return: nothing, just commit changes in table in DB
+        '''
+        typeColumn = self.identifyTypeColumn (columnNew[1:])
+        #Adding column after last column
+        self.cursor.do("ALTER TABLE "+ str(self.dbMan.nameTable()) + 
+                " ADD " + str(columnNew[0]) + 
+                " " + str(typeColumn) + ";")
+        #Insert items in new column
+        for i in range(1,len(columnNew)):
+            self.cursor.do("UPDATE "+ str(self.dbMan.nameTable()) + 
+                    " SET "+ str(columnNew[0]) + 
+                    " = '" + str(columnNew[i]) + "'" +
+                    " WHERE " + tempID + " = " + str(i) + ";")
+        #Saving changes
+        self.cursor.commit()
+        
+    def deleteColumn (self, name):
+        '''
+        Function delete column by name 
+        Takes: name
+        Return: nothing, rewriting table
+        '''
+        #Drop column
+        self.cursor.do("ALTER TABLE "+ str(self.dbMan.nameTable()) + 
+                " DROP " + str(name) + ";")
+        print (name)
+        #Saving changes
+        self.cursor.commit()
+
+    def checkColumn (self):
+        self.matrixOld = self.dbMan.getAmendedTable()
+        #Add temp id column
+        try:
+            tempID = self.tempIdAdd()
+        except pymysql.err.InternalError:
+            self.tempIdDel('tempIDColumn')
+            tempID = self.tempIdAdd()
+        #---Delete---
+        print ("old/new \n")
+        for l in self.matrixOld:
+            print (l)
+        for r in self.matrixNew:
+            print (r)
+        #------------
+        
+        #Check every column for deleting
+        if len(self.matrixOld[0]) > len(list(filter(bool, self.matrixNew[0]))):
+            print(len(self.matrixOld[0]), len(list(filter(bool, self.matrixNew[0]))))
+            deleteColumnsNames = []
+            for item in self.matrixOld[0]:
+                if item not in self.matrixNew[0]:
+                    deleteColumnsNames.append(item)
+            for name in deleteColumnsNames:
+                self.deleteColumn(name)
+            return
+        #Check every column for changing and adding
+        for i in range(len(self.matrixNew[0])):
+            if i+1 <= len(self.matrixOld[0]):
+                if self.matrixNew[0][i] != self.matrixOld[0][i]:
+                    self.changeColumn (
+                        #Get columns from matrix for giving
+                        self.matrixOld[0][i],
+                        list([li[i] for li in self.matrixNew]),
+                        #Give name of tempID
+                        tempID
+                        )
+            if i+1 > len(self.matrixOld[0]):
+                self.addColumn(list([li[i] for li in self.matrixNew]),
+                                tempID)
+        
+        #Delete column with temp id
+        self.tempIdDel(tempID)
+
+    def checkMatrix (self):
+        self.checkColumn()

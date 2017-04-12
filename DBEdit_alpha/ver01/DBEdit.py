@@ -5,10 +5,9 @@ from PyQt5.QtWidgets import (QWidget, QLabel, QGridLayout, QApplication,
     QDesktopWidget, QListWidget, QPushButton, QFileDialog, QAbstractItemView,
     QAction, QMenuBar, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout,
     QAbstractScrollArea)
-#Module for regular expression
-import re
+
 #Our module
-from DBMan import DBM
+from DBMan import DBM, TableProcessor
 
 class DBEditGUI (QMainWindow):
     
@@ -53,9 +52,9 @@ class DBEditGUI (QMainWindow):
         findAction.setShortcut("Ctrl+F")
         editMenu.addAction(findAction)
         
-        createAction = QAction("Create",self)
-        createAction.setShortcut("Ctrl+G")
-        graphMenu.addAction(createAction)
+        createGraphAction = QAction("Create",self)
+        createGraphAction.setShortcut("Ctrl+G")
+        graphMenu.addAction(createGraphAction)
 
         #Name opened table
         self.tableNameLabel = QLabel('')
@@ -64,10 +63,6 @@ class DBEditGUI (QMainWindow):
         #Create table
         self.tableWidget = QTableWidget()
         
-        #Connect the ScrollBar for signal when table ends
-        self.tableWidget.verticalScrollBar().valueChanged.connect(self.scrolledEvent)
-        self.tableWidget.horizontalScrollBar().valueChanged.connect(self.scrolledEvent)
-        
         #Create grid and set spacing for cells
         grid = QGridLayout()
         grid.setSpacing(10)
@@ -75,8 +70,16 @@ class DBEditGUI (QMainWindow):
         grid.addWidget(self.tableWidget, 1, 0)
         mainWidget.setLayout(grid) 
         self.tableWidget.move(0,0)
+        
         #Binding actions
-        tableMenu.triggered[QAction].connect(self.openActionFunc)
+        #tableMenu.triggered[QAction].connect(self.openActionFunc)
+        openAction.triggered.connect(self.openActionFunc)
+        createGraphAction.triggered.connect(self.createGraphActionFunc)
+        saveAction.triggered.connect(self.saveActionFunc)
+        #Connect the ScrollBar for signal when table ends
+        self.tableWidget.verticalScrollBar().valueChanged.connect(self.scrolledEvent)
+        self.tableWidget.horizontalScrollBar().valueChanged.connect(self.scrolledEvent)
+        
         #Show window
         self.show()
         
@@ -108,7 +111,49 @@ class DBEditGUI (QMainWindow):
         '''
         self.changerGUI = ChangerGUI(self.dbMan, self)
         self.changerGUI.show()
+        
+    def createGraphActionFunc (self):
+        '''
+        Function create window for making graphs
+        '''
+        self.graphGUI = TRVisualGUI()
+        self.graphGUI.show()
     
+    def getMatrixFromTable (self):
+        '''
+        Function get values from tableWidget in matrix view end 
+        returns it. Empty values change in 0
+        '''
+        #Get matrix without none elements
+        w = self.tableWidget.columnCount()
+        h = self.tableWidget.rowCount()
+        matrixWithoutNone = list(
+                            filter(bool, 
+                            [[self.tableWidget.item(j,i).text() 
+                                for i in range(w) 
+                                    if self.tableWidget.item(j,i) is not None ] 
+                            for j in range(h)]
+                            ))
+        #Get real width and height matrix
+        width = 0
+        height = len(matrixWithoutNone)
+        for r in matrixWithoutNone:
+            if len(r) > width:
+                width = len(r)
+        #Create matrix none -> 0 , like a square
+        matrixWithEmptyItems = ([[0 for i in range(width)] 
+                                    for j in range(height)])
+        for i in range(len(matrixWithoutNone)):
+            for j in range(len(matrixWithoutNone[i])):
+                matrixWithEmptyItems[i][j] = matrixWithoutNone[i][j]
+                
+        return matrixWithEmptyItems
+    
+    def saveActionFunc (self):
+        tabProc = TableProcessor (self.dbMan, self.getMatrixFromTable())
+        self.printTable()
+        
+        
     def printTable (self):
         '''
         Function print table from DBM in DBEditGUI tableWidget
@@ -279,7 +324,7 @@ class TRVisualGUI (QWidget):
         #Set layout of window
         self.setLayout(grid)
         #Show window
-        self.show()
+        #self.show()
 
     def makeGraph(self):
         #Get from tablesList selected tables and put their in selectedTablesList
