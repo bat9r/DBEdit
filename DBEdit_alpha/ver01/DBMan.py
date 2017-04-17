@@ -220,10 +220,11 @@ class DBM (Relationship):
         Takes: argument name of needed table,
         Returns: table in matrix view
         '''
+        mysql = MySQL()
         #MySQL command Get table
-        self.cursor.do('select * from ' + self.__nameTable + ';')
+        mysql.do('select * from ' + self.__nameTable + ';')
         #Get table like matrix
-        matrix = [list(row) for row in self.cursor.done()]
+        matrix = [list(row) for row in mysql.done()]
         #Returning table-matrix
         return matrix
         
@@ -350,6 +351,27 @@ class TableProcessor:
         '''
         self.cursor.do("ALTER TABLE "+ str(self.dbMan.nameTable()) + 
                 " drop "+ tempID +" ;")
+    
+    def getTableWithout1Col (self, matrix):
+        '''
+        Function delete first row in matrix (list)
+        '''
+        for row in matrix:
+            del row[0]
+        return matrix
+      
+    def setUniqueName (self, listNames):
+        '''
+        Function get list, and retuen unique name which not included
+        in listNames 
+        '''
+        name = "SystemUniqueID"
+        counter = 0
+        if name in listNames:
+            while name in listNames:
+                counter += 1
+                name = str("SystemUniqueID" + str(counter))
+        return name
         
     def changeColumn (self, columnOldName, columnNew, tempID):
         '''
@@ -359,21 +381,46 @@ class TableProcessor:
         element is name of new column, tempID name (str))
         Returns: nothing just change table in DB
         '''
+        #Ident type of column
         typeColumn = self.identifyTypeColumn (columnNew[1:])
-        #Adding column after old column
-        self.cursor.do("ALTER TABLE "+ str(self.dbMan.nameTable()) + 
-                " ADD " + str(columnNew[0]) + 
+        #Check if old name eaquals new name
+        print (columnOldName, columnNew[0])
+        if columnOldName == columnNew[0]:
+            uniqueName = self.setUniqueName (self.matrixNew[0])
+            #Adding column after old column
+            self.cursor.do("ALTER TABLE "+ str(self.dbMan.nameTable()) + 
+                " ADD " + str(uniqueName) + 
                 " " + str(typeColumn) +
                 " AFTER " + str(columnOldName) + ";")
-        #Insert items in new column
-        for i in range(1,len(columnNew)):
-            self.cursor.do("UPDATE "+ str(self.dbMan.nameTable()) + 
-                    " SET "+ str(columnNew[0]) + 
-                    " = '" + str(columnNew[i]) + "'" +
-                    " WHERE " + tempID + " = " + str(i) + ";")
-        #Drop old column
-        self.cursor.do("ALTER TABLE "+ str(self.dbMan.nameTable()) + 
-                " DROP " + str(columnOldName) + ";")
+            #Insert items in new column
+            for i in range(1,len(columnNew)):
+                self.cursor.do("UPDATE "+ str(self.dbMan.nameTable()) + 
+                        " SET "+ str(uniqueName) + 
+                        " = '" + str(columnNew[i]) + "'" +
+                        " WHERE " + tempID + " = " + str(i) + ";")
+            #Drop old column
+            self.cursor.do("ALTER TABLE "+ str(self.dbMan.nameTable()) + 
+                    " DROP " + str(columnOldName) + ";")
+            #Rename unique name to new column name
+            self.cursor.do("ALTER TABLE "+ str(self.dbMan.nameTable()) + 
+                    " CHANGE " + str(uniqueName) + " " +
+                    str(columnNew[0]) + " " +
+                    str(typeColumn) + " ;")
+        if columnOldName != columnNew[0]:
+            #Adding column after old column
+            self.cursor.do("ALTER TABLE "+ str(self.dbMan.nameTable()) + 
+                    " ADD " + str(columnNew[0]) + 
+                    " " + str(typeColumn) +
+                    " AFTER " + str(columnOldName) + ";")
+            #Insert items in new column
+            for i in range(1,len(columnNew)):
+                self.cursor.do("UPDATE "+ str(self.dbMan.nameTable()) + 
+                        " SET "+ str(columnNew[0]) + 
+                        " = '" + str(columnNew[i]) + "'" +
+                        " WHERE " + tempID + " = " + str(i) + ";")
+            #Drop old column
+            self.cursor.do("ALTER TABLE "+ str(self.dbMan.nameTable()) + 
+                    " DROP " + str(columnOldName) + ";")
         #Saving changes
         self.cursor.commit()
     
@@ -416,7 +463,7 @@ class TableProcessor:
         '''
         Function check type, is it compatible with type in the table.
         Takes: indexes for matrixNew (i,j)
-        Return: True or Falsr (True if compatible)
+        Return: True or False (True if compatible)
         '''
         def parseType (typeStr):
             '''
@@ -431,7 +478,6 @@ class TableProcessor:
             return list((typePart1, typePart2))
             
         #Ident current type
-        print (self.matrixNew[i][j])
         currentType = str(self.identifyType(self.matrixNew[i][j])[0])
         #Ident previous type
         self.cursor.do("desc " + self.dbMan.nameTable() + ";")
@@ -443,8 +489,8 @@ class TableProcessor:
                         return True
                 if parseType(currentType)[0] != 'varchar':
                     return True
-        
-        return False
+            else:
+                return False
         
     def changeValue (self, i, j, tempID):
         '''
@@ -486,33 +532,60 @@ class TableProcessor:
             if i+1 > len(self.matrixOld[0]):
                 self.addColumn(list([li[i] for li in self.matrixNew]),
                                 tempID)
-        
-        #Check values in cells
-        self.checkValues(tempID)
+        self.cursor.commit()
         
     def checkValues (self, tempID):
+        '''
+        Function checks values, and edit it
+        Takes: tempID
+        Return: nothing, but rewrite table
+        '''
+        matrixOldValues = self.getTableWithout1Col(self.dbMan.getAmendedTable()[1:])
+        matrixNewValues = self.matrixNew[1:]
+        #---Delete---
+        print ("old/new from checkValues \n")
+        for l in matrixOldValues:
+            print (l)
+        for r in matrixNewValues:
+            print (r)
+        #------------
         #Update old table
-        self.matrixOld = self.dbMan.getAmendedTable()
         #Check values in table
-        for i in range(len(self.matrixNew)):
-            for j in range(len(self.matrixNew[i])):
-                if i+1 <= len(self.matrixOld):
-                    if j+1 <= len(self.matrixOld[j]):
-                        if str(self.matrixOld[i][j]) != str(self.matrixNew[i][j]):
+        
+        for i in range(len(matrixNewValues)):
+            for j in range(len(matrixNewValues[i])):
+                if i+1 <= len(matrixOldValues):
+                    if j+1 <= len(matrixOldValues[i]):
+                        if str(matrixOldValues[i][j]) != str(matrixNewValues[i][j]):
                             if self.checkType(i,j):
                                 self.changeValue(i,j, tempID)
+                            else:
+                                self.changeColumn (
+                                    self.matrixOld[0][j],
+                                    list([li[j] for li in self.matrixNew]),
+                                    tempID)
+       
+    def checkRows (self):
+        self.matrixOld = self.dbMan.getAmendedTable()
+        lmn = len(self.matrixNew)
+        lmo = len(self.matrixOld)
+        rows = []
+        if  lmn > lmo:
+            for i in range(lmo, lmn):
+                rows.append(self.matrixNew[i])
+        print (rows[0])
         
     def checkMatrix (self):
-        #Update old table
-        self.matrixOld = self.dbMan.getAmendedTable()
         #Add temp id column
         try:
             tempID = self.tempIdAdd()
         except pymysql.err.InternalError:
             self.tempIdDel('tempIDColumn')
             tempID = self.tempIdAdd()
-            
-        #---Delete---
+        
+        #Update old table
+        self.matrixOld = self.getTableWithout1Col(self.dbMan.getAmendedTable())
+         #---Delete---
         print ("old/new \n")
         for l in self.matrixOld:
             print (l)
@@ -521,6 +594,7 @@ class TableProcessor:
         #------------
         
         self.checkColumns(tempID)
-        
+        self.checkValues(tempID)
         #Delete column with temp id
         self.tempIdDel(tempID)
+        #self.checkRows()
