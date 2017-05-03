@@ -308,8 +308,8 @@ class TableProcessor:
                 return ["TIME", '22']
         #Check strings
         #TODO add null, and change 0 to NULL in save function main module
-        #if (value == "NULL"):
-        #    return ["NULL", '-1']
+        if (value == "None"):
+            return ["Nu", '-1']
         else:
             return ["VARCHAR("+str(len(value))+")", str(100+len(value))]
 
@@ -326,7 +326,7 @@ class TableProcessor:
             tempT = self.identifyType(item)
             if (tempT[1][0] == '2') and (int(finalIndex) < 20):
                 finalType = "VARCHAR("+str(20)+")"
-            if int(tempT[1]) > finalIndex:
+            if int(tempT[1]) >= finalIndex:
                 finalIndex = int(tempT[1])
                 finalType = tempT[0]
         return finalType
