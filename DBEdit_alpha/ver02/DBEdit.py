@@ -5,7 +5,8 @@ from PyQt5.QtWidgets import (QWidget, QLabel, QGridLayout, QApplication,
                              QDesktopWidget, QListWidget, QPushButton,
                              QAbstractItemView, QAction, QMenuBar,
                              QMainWindow, QTableWidget,
-                             QTableWidgetItem, QAbstractScrollArea)
+                             QTableWidgetItem, QAbstractScrollArea,
+                             QLineEdit)
 
 # Our module
 from DBMan import DBM, TableParser
@@ -78,6 +79,7 @@ class DBEditGUI(QMainWindow):
         openAction.triggered.connect(self.openActionFunc)
         createGraphAction.triggered.connect(self.createGraphActionFunc)
         saveAction.triggered.connect(self.saveActionFunc)
+        newAction.triggered.connect(self.newActionFunc)
         # Connect the ScrollBar for signal when table ends
         self.tableWidget.verticalScrollBar().valueChanged.connect(
             self.scrolledEvent)
@@ -108,6 +110,9 @@ class DBEditGUI(QMainWindow):
             self.createRows()
         elif value == self.tableWidget.horizontalScrollBar().maximum():
             self.createColumns()
+
+    def newActionFunc(self):
+        pass
 
     def openActionFunc(self):
         """
@@ -168,7 +173,7 @@ class ChangerGUI(QWidget):
         """
         # Set window title, size and put in center
         self.setWindowTitle('Choose table')
-        self.resize(400, 300)
+        self.resize(600, 300)
         self.moveToCenter()
         # Create labels
         databasesLabel = QLabel('Databases')
@@ -179,6 +184,15 @@ class ChangerGUI(QWidget):
         # Create lists
         self.databasesList = QListWidget()
         self.tablesList = QListWidget()
+        # QLineEdit for adding tables and databases
+        self.addDatabaseEditLabel = QLineEdit()
+        self.addTableEditLabel = QLineEdit()
+        # QPushButton for adding tables and databases
+        self.addDatabaseButton = QPushButton("+")
+        self.addTableButton = QPushButton("+")
+        # QPushButton for deleting tables and databases
+        self.delDatabaseButton = QPushButton("-")
+        self.delTableButton = QPushButton("-")
         # Set selection mode
         self.tablesList.setSelectionMode(
             QAbstractItemView.SingleSelection)
@@ -186,19 +200,30 @@ class ChangerGUI(QWidget):
         self.showDatabases()
         # Bind list
         self.databasesList.itemClicked.connect(self.showTables)
+        self.tablesList.itemClicked.connect(self.tablesListClick)
         # Create buttom
         makeGraphButton = QPushButton('Change')
         # Bind Button
         makeGraphButton.clicked.connect(self.changeTable)
+        self.addDatabaseButton.clicked.connect(self.addDatabase)
+        self.addTableButton.clicked.connect(self.addTable)
+        self.delDatabaseButton.clicked.connect(self.delDatabase)
+        self.delTableButton.clicked.connect(self.delTable)
         # Create grid and set spacing for cells
         grid = QGridLayout()
         grid.setSpacing(10)
         # Add widgets to grid
-        grid.addWidget(databasesLabel, 0, 0)
-        grid.addWidget(tablesLabel, 0, 1)
-        grid.addWidget(self.databasesList, 1, 0)
-        grid.addWidget(self.tablesList, 1, 1)
-        grid.addWidget(makeGraphButton, 2, 0, 1, 2)
+        grid.addWidget(databasesLabel,              0, 0, 1, 4)
+        grid.addWidget(tablesLabel,                 0, 4, 1, 4)
+        grid.addWidget(self.databasesList,          1, 0, 1, 4)
+        grid.addWidget(self.tablesList,             1, 4, 1, 4)
+        grid.addWidget(self.addDatabaseEditLabel,   2, 0, 1, 2)
+        grid.addWidget(self.addTableEditLabel,      2, 4, 1, 2)
+        grid.addWidget(self.addDatabaseButton,      2, 2, 1, 1)
+        grid.addWidget(self.addTableButton,         2, 6, 1, 1)
+        grid.addWidget(self.delDatabaseButton,      2, 3, 1, 1)
+        grid.addWidget(self.delTableButton,         2, 7, 1, 1)
+        grid.addWidget(makeGraphButton,             3, 0, 1, 8)
         # Set layout of window
         self.setLayout(grid)
 
@@ -224,6 +249,7 @@ class ChangerGUI(QWidget):
         """
         This function shows all databases and put their in databasesList
         """
+        self.databasesList.clear()
         self.databasesList.addItems(self.dbMan.getListNamesDatabases())
 
     def showTables(self):
@@ -236,8 +262,34 @@ class ChangerGUI(QWidget):
         self.tablesList.clear()
         self.dbMan.putNameDatabase(
             self.databasesList.currentItem().text())
+        self.addDatabaseEditLabel.setText(
+            self.databasesList.currentItem().text())
         self.tablesList.addItems(self.dbMan.getListNamesTables())
 
+    def addDatabase(self):
+        self.dbMan.do("CREATE DATABASE " +
+                      str(self.addDatabaseEditLabel.text()) + ";")
+        self.showDatabases()
+
+    def addTable(self):
+        self.dbMan.do("CREATE TABLE " +
+                      str(self.addTableEditLabel.text()) +
+                      " (id tinyint AUTO_INCREMENT PRIMARY KEY);")
+        self.showTables()
+
+    def delDatabase(self):
+        self.dbMan.do("DROP DATABASE " +
+                      str(self.addDatabaseEditLabel.text()) + ";")
+        self.showDatabases()
+
+    def delTable(self):
+        self.dbMan.do("DROP TABLE " +
+                      str(self.addTableEditLabel.text()) + ";")
+        self.showTables()
+
+    def tablesListClick(self):
+        self.addTableEditLabel.setText(
+            self.tablesList.currentItem().text())
 
 class TRVisualGUI(QWidget):
     def __init__(self):

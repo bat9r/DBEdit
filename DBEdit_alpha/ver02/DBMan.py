@@ -256,7 +256,8 @@ class DBM(Relationship, MySQL):
         """
         relationshipList = self.relationshipsList()
         for j in range(len(relationshipList)):
-            if (name == relationshipList[j][1]):
+            if ((name == relationshipList[j][1]) and
+                (j+1 < len(relationshipList))):
                 name = "$ " + name + " << " + str(
                     relationshipList[j + 1][1]) + ", " + str(
                     relationshipList[j + 1][0])
@@ -642,7 +643,8 @@ class TableParser:
                 continue
             else:
                 resRequest.append(self.typeColumn(nameCol))
-        resRequest[-1] = re.sub(", ", " ", resRequest[-1])
+        #resRequest[-1] = re.sub(", ", " ", resRequest[-1])
+        resRequest[-1] = resRequest[-1][:-2]
         resRequest.append(");")
         return "".join(resRequest)
 
