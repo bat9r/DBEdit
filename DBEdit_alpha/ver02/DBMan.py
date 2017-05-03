@@ -301,6 +301,7 @@ class DBM(Relationship, MySQL):
         indexColumn = self.getColumnsNames().index(columnName)
         return [row(indexColumn) in self.getTable()]
 
+
 class TableParser:
     def __init__(self, DBManCurrent):
         self.DBManNew = None
@@ -310,14 +311,14 @@ class TableParser:
         self.matrix = self.getMatrixValuesFromTable(
             self.getMatrixItemsFromTable(tableWidget)
         )
-        # ---Delete---
         self.createTempTable()
         self.matrix = self.getMatrixValuesFromTable(
             self.getMatrixItemsFromTable(tableWidget)
         )
         self.addRows()
         self.supersedeTable()
-        #print("---" * 10)
+
+        # ---Delete---
         for i in self.matrix:
             print(i)
         # ------------
@@ -400,11 +401,29 @@ class TableParser:
             rowValues = []
             for item in rowItems:
                 if item is not None:
-                    rowValues.append(item.text())
+                    if item.text() == "":
+                        rowValues.append(0)
+                    else:
+                        rowValues.append(item.text())
                 else:
                     rowValues.append(0)
             matrixValues.append(rowValues)
-        return matrixValues
+        #Delete row where all items == 0
+        resultMatrix = []
+        for row in matrixValues:
+            if all(i==0 for i in row):
+                continue
+            if all(i == "None" for i in row):
+                continue
+            else:
+                resultMatrix.append(row)
+        #Delete columns where name int(0)
+        for nameCol in resultMatrix[0]:
+            if nameCol == 0:
+                for i in range(len(resultMatrix)):
+                    del resultMatrix[i][-1]
+
+        return resultMatrix
 
     def getColumn(self, columnName):
         indexColumn = self.matrix[0].index(columnName)
@@ -502,7 +521,7 @@ class TableParser:
                 return ["TIME", '22']
         # Check strings
         else:
-            return ["VARCHAR(" + str(len(value)) + ")",
+            return ["VARCHAR(" + str(len(value)+1) + ")",
                     str(100 + len(value))]
 
     def identifyListValues(self, values):
@@ -611,7 +630,7 @@ class TableParser:
         """
         resRequest = ["("]
         for nameCol in self.matrix[0]:
-            if (nameCol is None) or (nameCol == ""):
+            if (nameCol is None) or (nameCol == "") or (nameCol == 0):
                 continue
             else:
                 resRequest.append(self.typeColumn(nameCol))
@@ -620,6 +639,10 @@ class TableParser:
         return "".join(resRequest)
 
     def createTempTable(self):
+        """
+        Create temporary table for working with it
+        :return: 
+        """
         self.DBManNew = DBM()
         self.DBManNew.putNameDatabase(self.DBManOld.getNameDatabase())
         self.DBManNew.putNameTable(self.uniqueNameTable())
@@ -628,6 +651,10 @@ class TableParser:
                          self.addColumns())
 
     def addRows(self):
+        """
+        Add rows in table from self.matrix(qtablewidget)
+        :return: 
+        """
         for row in self.matrix[1:]:
             tempListCols = []
             tempListVals = []
@@ -641,17 +668,27 @@ class TableParser:
         self.DBManNew.commit()
 
     def addRow(self, listCols, listValues):
+        """
+        Create part of request for adding row 
+        :param listCols: list(cols which need add values)
+        :param listValues: list(values which need to add)
+        :return: part of request str(INSERT INTO [name table]
+        ([columnName1], [columnName2]) VALUES ([value1], [value2]);)
+        """
         colNames = ", ".join(listCols)
         colNames = "(" + colNames + ")"
         values = re.sub("\[", "", str(listValues))
         values = re.sub("\]", "", values)
         values = "(" + values + ")"
-        print("@@@", values)
         request = str("INSERT INTO " + self.DBManNew.getNameTable() +
                       " " + colNames + " VALUES " + values + ";")
         return request
 
     def supersedeTable(self):
+        """
+        Delete old table and rename temporary to old 
+        :return: None
+        """
         self.DBManNew.do("drop table " +
                          self.DBManOld.getNameTable() + ";")
         self.DBManNew.do("RENAME TABLE " +
