@@ -39,9 +39,6 @@ class DBEditGUI(QMainWindow):
         editMenu = menuBar.addMenu("Edit")
         graphMenu = menuBar.addMenu("Graph")
         # Actions for menu
-        newAction = QAction("New", self)
-        newAction.setShortcut("Ctrl+N")
-        tableMenu.addAction(newAction)
 
         openAction = QAction("Open", self)
         openAction.setShortcut("Ctrl+O")
@@ -79,7 +76,6 @@ class DBEditGUI(QMainWindow):
         openAction.triggered.connect(self.openActionFunc)
         createGraphAction.triggered.connect(self.createGraphActionFunc)
         saveAction.triggered.connect(self.saveActionFunc)
-        newAction.triggered.connect(self.newActionFunc)
         # Connect the ScrollBar for signal when table ends
         self.tableWidget.verticalScrollBar().valueChanged.connect(
             self.scrolledEvent)
@@ -110,9 +106,6 @@ class DBEditGUI(QMainWindow):
             self.createRows()
         elif value == self.tableWidget.horizontalScrollBar().maximum():
             self.createColumns()
-
-    def newActionFunc(self):
-        pass
 
     def openActionFunc(self):
         """
@@ -290,6 +283,7 @@ class ChangerGUI(QWidget):
     def tablesListClick(self):
         self.addTableEditLabel.setText(
             self.tablesList.currentItem().text())
+
 
 class TRVisualGUI(QWidget):
     def __init__(self):
