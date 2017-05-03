@@ -521,7 +521,7 @@ class TableParser:
                 return ["TIME", '22']
         # Check strings
         else:
-            return ["VARCHAR(" + str(len(value)+1) + ")",
+            return ["VARCHAR(" + str(len(value)) + ")",
                     str(100 + len(value))]
 
     def identifyListValues(self, values):
@@ -537,6 +537,14 @@ class TableParser:
             if int(tempType[1]) > index:
                 index = int(tempType[1])
                 resultType = tempType[0]
+        #If int bigger then char
+        if "VARCHAR" in resultType:
+            maxLen = 0
+            for value in values:
+                if maxLen < len(str(value)):
+                    maxLen = len(str(value))
+            resultType = "VARCHAR(" + str(maxLen+1) + ")";
+
         return resultType
 
     def identifyTypeColumnValues(self, nameTable, nameColumn):
