@@ -9,8 +9,9 @@ from PyQt5.QtWidgets import (QWidget, QLabel, QGridLayout, QApplication,
                              QLineEdit)
 
 # Our module
-from DBMan import DBM, TableParser
-
+from DBMan import DBM, TableParser, Report
+# For openning pdf
+import subprocess
 
 class DBEditGUI(QMainWindow):
     def __init__(self, dbmObj):
@@ -37,7 +38,7 @@ class DBEditGUI(QMainWindow):
         self.setMenuBar(menuBar)
         tableMenu = menuBar.addMenu("Table")
         editMenu = menuBar.addMenu("Edit")
-        graphMenu = menuBar.addMenu("Graph")
+        makeMenu = menuBar.addMenu("Make")
         # Actions for menu
 
         openAction = QAction("Open", self)
@@ -52,9 +53,13 @@ class DBEditGUI(QMainWindow):
         findAction.setShortcut("Ctrl+F")
         editMenu.addAction(findAction)
 
-        createGraphAction = QAction("Create", self)
+        createGraphAction = QAction("Graph", self)
         createGraphAction.setShortcut("Ctrl+G")
-        graphMenu.addAction(createGraphAction)
+        makeMenu.addAction(createGraphAction)
+
+        createReportAction = QAction("Report", self)
+        createReportAction.setShortcut("Ctrl+R")
+        makeMenu.addAction(createReportAction)
 
         # Name opened table
         self.tableNameLabel = QLabel('')
@@ -75,6 +80,8 @@ class DBEditGUI(QMainWindow):
         # tableMenu.triggered[QAction].connect(self.openActionFunc)
         openAction.triggered.connect(self.openActionFunc)
         createGraphAction.triggered.connect(self.createGraphActionFunc)
+        createReportAction.triggered.connect(
+            self.createReportActionFunc)
         saveAction.triggered.connect(self.saveActionFunc)
         # Connect the ScrollBar for signal when table ends
         self.tableWidget.verticalScrollBar().valueChanged.connect(
@@ -119,6 +126,13 @@ class DBEditGUI(QMainWindow):
         Function create window for making graphs
         """
         self.graphGUI = TRVisualGUI()
+        self.graphGUI.show()
+
+    def createReportActionFunc(self):
+        """
+        Function create window for making graphs
+        """
+        self.graphGUI = ReportGUI()
         self.graphGUI.show()
 
     def saveActionFunc(self):
@@ -358,6 +372,106 @@ class TRVisualGUI(QWidget):
         """
         This function shows all databases and put their in databasesList
         """
+        self.databasesList.addItems(self.dbMan.getListNamesDatabases())
+
+    def showTables(self):
+        """
+        This function shows all tables, after user click on name of database
+        and put their in tablesList. Also this function change database
+        (use [db];).
+        """
+        self.tablesList.clear()
+        self.dbMan.putNameDatabase(
+            self.databasesList.currentItem().text())
+        self.tablesList.addItems(self.dbMan.getListNamesTables())
+
+
+class ReportGUI(QWidget):
+    def __init__(self):
+        # Initialize father (QWidget) constructor (__init__)
+        QWidget.__init__(self)
+        # Only for adds tables names
+        self.dbMan = DBM()
+        # Function for creating UI
+        self.initUI()
+
+    def initUI(self):
+        '''
+        Function initialize user interface
+        '''
+        # Set window title, size and put in center
+        self.setWindowTitle('Choose table')
+        self.resize(400, 300)
+        self.moveToCenter()
+        # Create labels
+        databasesLabel = QLabel('Databases')
+        tablesLabel = QLabel('Tables')
+        # Center labels in grid cell
+        databasesLabel.setAlignment(Qt.AlignCenter)
+        tablesLabel.setAlignment(Qt.AlignCenter)
+        # Create lists
+        self.databasesList = QListWidget()
+        self.tablesList = QListWidget()
+        # Set selection mode
+        self.tablesList.setSelectionMode(
+            QAbstractItemView.MultiSelection)
+        # Adding items in databasesList and tablesList
+        self.showDatabases()
+        # Bind list
+        self.databasesList.itemClicked.connect(self.showTables)
+        # For name of Report
+        self.addReportNameEditLabel = QLineEdit()
+        self.addReportNameEditLabel.setText("Report_Name")
+        # Create buttom
+        makeGraphButton = QPushButton('Make Report')
+        # Bind Button
+        makeGraphButton.clicked.connect(self.makeReport)
+        # Create grid and set spacing for cells
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        # Add widgets to grid
+        grid.addWidget(databasesLabel, 0, 0)
+        grid.addWidget(tablesLabel, 0, 1)
+        grid.addWidget(self.databasesList, 1, 0)
+        grid.addWidget(self.tablesList, 1, 1)
+        grid.addWidget(self.addReportNameEditLabel, 2, 0, 1, 2)
+        grid.addWidget(makeGraphButton, 3, 0, 1, 2)
+        # Set layout of window
+        self.setLayout(grid)
+
+    def makeReport(self):
+        nameReport = self.addReportNameEditLabel.text()+".pdf"
+        report = Report(nameReport)
+        # Get from tablesList selected tables and put their in selectedTablesList
+        selectedTablesList = [i.data() for i in
+                              self.tablesList.selectedIndexes()]
+        conTables = []
+        for name in selectedTablesList:
+            self.dbMan.putNameTable(name)
+            table = self.dbMan.getTable()
+            table.insert(0, self.dbMan.getColumnsNames())
+            conTables.append(table)
+
+        report.make(selectedTablesList, conTables )
+        subprocess.call("open " + nameReport, shell=True)
+
+    def moveToCenter(self):
+        '''
+        Function put window (self) in center of screen
+        '''
+        # Get rectangle, geometry of window
+        qr = self.frameGeometry()
+        # Get resolution monitor, get center dot
+        cp = QDesktopWidget().availableGeometry().center()
+        # Move rectangle centre in window center
+        qr.moveCenter(cp)
+        # Move topLeft dot of window in topLeft of rectangle
+        self.move(qr.topLeft())
+
+    def showDatabases(self):
+        '''
+        This function shows all databases and put their in databasesList
+        '''
         self.databasesList.addItems(self.dbMan.getListNamesDatabases())
 
     def showTables(self):

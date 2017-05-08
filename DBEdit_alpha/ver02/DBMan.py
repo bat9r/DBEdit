@@ -6,6 +6,12 @@ from graphviz import Digraph
 import re
 from PyQt5.QtWidgets import (QTableWidget, QTableWidgetItem,
                              QAbstractScrollArea)
+# Modules for Report creating (class Report)
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.platypus.tables import Table, TableStyle
+from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import PageBreak
 
 class MySQL:
     """
@@ -704,4 +710,44 @@ class TableParser:
         self.DBManNew.do("RENAME TABLE " +
                          self.DBManNew.getNameTable() + " TO " +
                          self.DBManOld.getNameTable() + " ;")
+
+
+class Report:
+    def __init__(self, name):
+        self.document = SimpleDocTemplate(name)
+
+    def make(self, nameTables, contentTables):
+        """
+        Make pdf file with tables with his names.
+        :param nameTables: list("name of table", )
+        :param contentTables: list(matrix, )
+        :return: create document in current folder
+        """
+        content = []
+        for i in range(len(nameTables)):
+            content += self.addTable(nameTables[i], contentTables[i])
+        self.document.build(content)
+
+    def addTable(self, tableName, matrix):
+        """
+        Add in self.document name and table
+        :param tableName: str(name of table)
+        :param matrix: list(list(str(items table)))
+        :return: header and table object should append in content
+        """
+        styleParagraph = ParagraphStyle(
+            'title',
+            fontName='Helvetica-Bold',
+            fontSize=24,
+            leading=42
+        )
+        header = Paragraph(tableName, styleParagraph)
+        table = Table(matrix, hAlign="LEFT")
+
+        table.setStyle(TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.25, colors.black),
+            ("FONT", (0, 0), (-1, 0), "Helvetica", 16),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.gray),
+        ]))
+        return [header, table, PageBreak()]
 
