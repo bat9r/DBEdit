@@ -49,9 +49,9 @@ class DBEditGUI(QMainWindow):
         saveAction.setShortcut("Ctrl+S")
         tableMenu.addAction(saveAction)
 
-        findAction = QAction("Find", self)
-        findAction.setShortcut("Ctrl+F")
-        editMenu.addAction(findAction)
+        replaceAction = QAction("Replace", self)
+        replaceAction.setShortcut("Ctrl+F")
+        editMenu.addAction(replaceAction)
 
         createGraphAction = QAction("Graph", self)
         createGraphAction.setShortcut("Ctrl+G")
@@ -83,6 +83,7 @@ class DBEditGUI(QMainWindow):
         createReportAction.triggered.connect(
             self.createReportActionFunc)
         saveAction.triggered.connect(self.saveActionFunc)
+        replaceAction.triggered.connect(self.replaceActionFunc)
         # Connect the ScrollBar for signal when table ends
         self.tableWidget.verticalScrollBar().valueChanged.connect(
             self.scrolledEvent)
@@ -139,16 +140,26 @@ class DBEditGUI(QMainWindow):
         """
         Function save current table, and commit it in DB
         """
-        tableParser = TableParser(self.dbMan)
-        tableParser.save(self.tableWidget)
+        tableParser = TableParser(DBManOld=self.dbMan,
+                                  tableWidget=self.tableWidget)
+        tableParser.save()
         self.printTable()
+
+    def replaceActionFunc(self):
+        """
+        Function replace words
+        :return: None
+        """
+        self.replaceGUI = ReplaceGUI(self.tableWidget)
+        self.replaceGUI.show()
 
     def printTable(self):
         """
         Function print table from DBM in using TableParser
         """
-        tableParser = TableParser(self.dbMan)
-        tableParser.writeTable(self.tableWidget, self.tableNameLabel)
+        tableParser = TableParser(DBManOld=self.dbMan,
+                                  tableWidget=self.tableWidget)
+        tableParser.writeTable(self.tableNameLabel)
 
     def moveToCenter(self):
         """
@@ -485,6 +496,61 @@ class ReportGUI(QWidget):
             self.databasesList.currentItem().text())
         self.tablesList.addItems(self.dbMan.getListNamesTables())
 
+
+class ReplaceGUI(QWidget):
+    def __init__(self, tableWidget):
+        QWidget.__init__(self)
+        self.tableWidget = tableWidget
+        self.dbMan = DBM()
+        self.initUI()
+
+    def initUI(self):
+        '''
+        Function initialize user interface
+        '''
+        # Set window title, size and put in center
+        self.setWindowTitle('Replace')
+        self.resize(300, 180)
+        self.moveToCenter()
+        # Create labels
+        findLabel = QLabel('Find...')
+        replaceLabel = QLabel('Replace to...')
+        # Create lineedit for find and replace
+        self.findLineEdit = QLineEdit()
+        self.replaceLineEdit = QLineEdit()
+        # Create buttom
+        replaceButton = QPushButton('Replace')
+        replaceButton.clicked.connect(self.replaceFunc)
+        # Create grid and set spacing for cells
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        # Add widjets in grid
+        grid.addWidget(findLabel, 0, 0)
+        grid.addWidget(self.findLineEdit, 1, 0)
+        grid.addWidget(replaceLabel, 2, 0)
+        grid.addWidget(self.replaceLineEdit, 3, 0)
+        grid.addWidget(replaceButton, 4, 0)
+        # Set layout of window
+        self.setLayout(grid)
+
+    def replaceFunc(self):
+        processor = TableParser(tableWidget=self.tableWidget)
+        findStr = self.findLineEdit.text()
+        replaceStr = self.replaceLineEdit.text()
+        processor.replaceByPattern(findStr, replaceStr)
+
+    def moveToCenter(self):
+        '''
+        Function put window (self) in center of screen
+        '''
+        # Get rectangle, geometry of window
+        qr = self.frameGeometry()
+        # Get resolution monitor, get center dot
+        cp = QDesktopWidget().availableGeometry().center()
+        # Move rectangle centre in window center
+        qr.moveCenter(cp)
+        # Move topLeft dot of window in topLeft of rectangle
+        self.move(qr.topLeft())
 
 def main():
     # Database manager

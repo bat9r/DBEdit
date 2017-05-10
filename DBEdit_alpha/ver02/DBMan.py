@@ -310,27 +310,27 @@ class DBM(Relationship, MySQL):
 
 
 class TableParser:
-    def __init__(self, DBManCurrent):
+    def __init__(self, DBManOld=None, tableWidget=None):
         self.DBManNew = None
-        self.DBManOld = DBManCurrent
+        self.DBManOld = DBManOld
+        self.tableWidget = tableWidget
 
-    def save(self, tableWidget):
+    def save(self):
         self.matrix = self.getMatrixValuesFromTable(
-            self.getMatrixItemsFromTable(tableWidget)
+            self.getMatrixItemsFromTable(self.tableWidget)
         )
         self.createTempTable()
         self.matrix = self.getMatrixValuesFromTable(
-            self.getMatrixItemsFromTable(tableWidget)
+            self.getMatrixItemsFromTable(self.tableWidget)
         )
         self.addRows()
         self.supersedeTable()
-
         # ---Delete---
         for i in self.matrix:
             print(i)
         # ------------
 
-    def writeTable(self, tableWidget, tableNameLabel):
+    def writeTable(self, tableNameLabel):
         """
         Function print table from DBM in DBEditGUI tableWidget
         """
@@ -341,24 +341,24 @@ class TableParser:
         table.insert(0, self.DBManOld.getColumnsAmendedNames())
         columnCount = len(table[0])
         rowCount = len(table)
-        tableWidget.setColumnCount(columnCount)
-        tableWidget.setRowCount(rowCount)
+        self.tableWidget.setColumnCount(columnCount)
+        self.tableWidget.setRowCount(rowCount)
         for rowI in range(rowCount):
             for colI in range(columnCount):
-                tableWidget.setItem(rowI, colI, QTableWidgetItem(
+                self.tableWidget.setItem(rowI, colI, QTableWidgetItem(
                     str(table[rowI][colI])))
         # Changes cells size for fitting to content
-        tableWidget.setSizeAdjustPolicy(
+        self.tableWidget.setSizeAdjustPolicy(
             QAbstractScrollArea.AdjustToContents)
-        tableWidget.resizeColumnsToContents()
+        self.tableWidget.resizeColumnsToContents()
         # Do table bigger (for scrolling)
         for i in range(10):
-            if i < tableWidget.columnCount():
-                tableWidget.insertColumn(
-                    tableWidget.columnCount())
+            if i < self.tableWidget.columnCount():
+                self.tableWidget.insertColumn(
+                    self.tableWidget.columnCount())
         for j in range(20):
-            if j < tableWidget.rowCount():
-                tableWidget.insertRow(tableWidget.rowCount())
+            if j < self.tableWidget.rowCount():
+                self.tableWidget.insertRow(self.tableWidget.rowCount())
 
     def getMatrixItemsFromTable(self, tableWidget):
         """
@@ -711,6 +711,23 @@ class TableParser:
                          self.DBManNew.getNameTable() + " TO " +
                          self.DBManOld.getNameTable() + " ;")
 
+    def replaceByPattern(self, patternStr, replaceToStr):
+        data = self.getMatrixValuesFromTable(
+            self.getMatrixItemsFromTable(self.tableWidget)
+        )
+
+        for i in range(len(data)):
+            for j in range(len(data[i])):
+                data[i][j]=re.sub(patternStr, replaceToStr, data[i][j])
+
+        self.writeInTableWidget(data)
+
+    def writeInTableWidget(self, data):
+        for i in range(len(data)):
+            for j in range(len(data[i])):
+                self.tableWidget.setItem(i, j,
+                    QTableWidgetItem(data[i][j]))
+
 
 class Report:
     def __init__(self, name):
@@ -741,7 +758,8 @@ class Report:
             fontSize=24,
             leading=42
         )
-        header = Paragraph(tableName, styleParagraph)
+        paragraphName = 'Report "' + tableName + '"'
+        header = Paragraph(paragraphName, styleParagraph)
         table = Table(matrix, hAlign="LEFT")
 
         table.setStyle(TableStyle([
